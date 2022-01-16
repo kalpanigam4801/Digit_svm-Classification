@@ -1,0 +1,527 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 import numpy as np # linear algebra\par
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\par
+\par
+# Input data files are available in the "../input/" directory.\par
+# For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory\par
+\par
+import os\par
+print(os.listdir("../input"))\par
+\par
+# Any results you write to the current directory are saved as output.\par
+['train.csv', 'sample_submission.csv', 'test.csv']\par
+MNIST Digits - Classification Using SVM**\par
+\par
+Objective We will develop a model using Support Vector Machine which should correctly classify the handwritten digits from 0-9 based on the pixel values given as features. Thus, this is a 10-class classification problem.\par
+\par
+Data Description For this problem, we use the MNIST data which is a large database of handwritten digits. The 'pixel values' of each digit (image) comprise the features, and the actual number between 0-9 is the label.\par
+\par
+Since each image is of 28 x 28 pixels, and each pixel forms a feature, there are 784 features. MNIST digit recognition is a well-studied problem in the ML community, and people have trained numerous models (Neural Networks, SVMs, boosted trees etc.) achieving error rates as low as 0.23% (i.e. accuracy = 99.77%, with a convolutional neural network).\par
+\par
+Before the popularity of neural networks, though, models such as SVMs and boosted trees were the state-of-the-art in such problems.\par
+\par
+We'll first explore the dataset a bit, prepare it (scale etc.) and then experiment with linear and non-linear SVMs with various hyperparameters.\par
+\par
+We'll divide the analysis into the following parts:\par
+\par
+Data understanding and cleaning Data preparation for model building Building an SVM model - hyperparameter tuning, model evaluation etc.\par
+\par
+Data Understanding\par
+\par
+Let's first load the data and understand the attributes meanings, shape of the dataset etc.\par
+\par
+import numpy as np\par
+import pandas as pd\par
+from sklearn.model_selection import train_test_split\par
+from sklearn.svm import SVC\par
+from sklearn.metrics import confusion_matrix\par
+from sklearn.model_selection import validation_curve\par
+from sklearn.model_selection import KFold\par
+from sklearn.model_selection import cross_val_score\par
+from sklearn.model_selection import GridSearchCV\par
+import matplotlib.pyplot as plt\par
+import seaborn as sns\par
+train_data = pd.read_csv("../input/train.csv") #reading the csv files using pandas\par
+test_data = pd.read_csv("../input/test.csv")\par
+train_data.shape # print the dimension or shape of train data\par
+(42000, 785)\par
+test_data.shape # print the dimension or shape of test data\par
+(28000, 784)\par
+train_data.head() # printing first five columns of train_data\par
+label\tab pixel0\tab pixel1\tab pixel2\tab pixel3\tab pixel4\tab pixel5\tab pixel6\tab pixel7\tab pixel8\tab pixel9\tab pixel10\tab pixel11\tab pixel12\tab pixel13\tab pixel14\tab pixel15\tab pixel16\tab pixel17\tab pixel18\tab pixel19\tab pixel20\tab pixel21\tab pixel22\tab pixel23\tab pixel24\tab pixel25\tab pixel26\tab pixel27\tab pixel28\tab pixel29\tab pixel30\tab pixel31\tab pixel32\tab pixel33\tab pixel34\tab pixel35\tab pixel36\tab pixel37\tab pixel38\tab ...\tab pixel744\tab pixel745\tab pixel746\tab pixel747\tab pixel748\tab pixel749\tab pixel750\tab pixel751\tab pixel752\tab pixel753\tab pixel754\tab pixel755\tab pixel756\tab pixel757\tab pixel758\tab pixel759\tab pixel760\tab pixel761\tab pixel762\tab pixel763\tab pixel764\tab pixel765\tab pixel766\tab pixel767\tab pixel768\tab pixel769\tab pixel770\tab pixel771\tab pixel772\tab pixel773\tab pixel774\tab pixel775\tab pixel776\tab pixel777\tab pixel778\tab pixel779\tab pixel780\tab pixel781\tab pixel782\tab pixel783\par
+0\tab 1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+2\tab 1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+3\tab 4\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+4\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+test_data.shape # print the dimension or shape of test data\par
+\par
+test_data.head() # printing first five columns of test_data\par
+pixel0\tab pixel1\tab pixel2\tab pixel3\tab pixel4\tab pixel5\tab pixel6\tab pixel7\tab pixel8\tab pixel9\tab pixel10\tab pixel11\tab pixel12\tab pixel13\tab pixel14\tab pixel15\tab pixel16\tab pixel17\tab pixel18\tab pixel19\tab pixel20\tab pixel21\tab pixel22\tab pixel23\tab pixel24\tab pixel25\tab pixel26\tab pixel27\tab pixel28\tab pixel29\tab pixel30\tab pixel31\tab pixel32\tab pixel33\tab pixel34\tab pixel35\tab pixel36\tab pixel37\tab pixel38\tab pixel39\tab ...\tab pixel744\tab pixel745\tab pixel746\tab pixel747\tab pixel748\tab pixel749\tab pixel750\tab pixel751\tab pixel752\tab pixel753\tab pixel754\tab pixel755\tab pixel756\tab pixel757\tab pixel758\tab pixel759\tab pixel760\tab pixel761\tab pixel762\tab pixel763\tab pixel764\tab pixel765\tab pixel766\tab pixel767\tab pixel768\tab pixel769\tab pixel770\tab pixel771\tab pixel772\tab pixel773\tab pixel774\tab pixel775\tab pixel776\tab pixel777\tab pixel778\tab pixel779\tab pixel780\tab pixel781\tab pixel782\tab pixel783\par
+0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+2\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+3\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+4\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+# there are no missing values in the dataset \par
+\par
+train_data.isnull().sum().head(10)\par
+label     0\par
+pixel0    0\par
+pixel1    0\par
+pixel2    0\par
+pixel3    0\par
+pixel4    0\par
+pixel5    0\par
+pixel6    0\par
+pixel7    0\par
+pixel8    0\par
+dtype: int64\par
+test_data.isnull().sum().head(10)\par
+pixel0    0\par
+pixel1    0\par
+pixel2    0\par
+pixel3    0\par
+pixel4    0\par
+pixel5    0\par
+pixel6    0\par
+pixel7    0\par
+pixel8    0\par
+pixel9    0\par
+dtype: int64\par
+test_data.describe()\par
+pixel0\tab pixel1\tab pixel2\tab pixel3\tab pixel4\tab pixel5\tab pixel6\tab pixel7\tab pixel8\tab pixel9\tab pixel10\tab pixel11\tab pixel12\tab pixel13\tab pixel14\tab pixel15\tab pixel16\tab pixel17\tab pixel18\tab pixel19\tab pixel20\tab pixel21\tab pixel22\tab pixel23\tab pixel24\tab pixel25\tab pixel26\tab pixel27\tab pixel28\tab pixel29\tab pixel30\tab pixel31\tab pixel32\tab pixel33\tab pixel34\tab pixel35\tab pixel36\tab pixel37\tab pixel38\tab pixel39\tab ...\tab pixel744\tab pixel745\tab pixel746\tab pixel747\tab pixel748\tab pixel749\tab pixel750\tab pixel751\tab pixel752\tab pixel753\tab pixel754\tab pixel755\tab pixel756\tab pixel757\tab pixel758\tab pixel759\tab pixel760\tab pixel761\tab pixel762\tab pixel763\tab pixel764\tab pixel765\tab pixel766\tab pixel767\tab pixel768\tab pixel769\tab pixel770\tab pixel771\tab pixel772\tab pixel773\tab pixel774\tab pixel775\tab pixel776\tab pixel777\tab pixel778\tab pixel779\tab pixel780\tab pixel781\tab pixel782\tab pixel783\par
+count\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab ...\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.000000\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\tab 28000.0\par
+mean\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.001357\tab 0.012500\tab 0.016786\tab 0.031714\tab 0.056000\tab 0.100464\tab 0.166929\tab ...\tab 3.272536\tab 2.371464\tab 1.454357\tab 0.846286\tab 0.509750\tab 0.254750\tab 0.062107\tab 0.015250\tab 0.000786\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.005429\tab 0.024179\tab 0.036250\tab 0.083143\tab 0.134107\tab 0.201071\tab 0.325000\tab 0.366714\tab 0.468143\tab 0.589429\tab 0.656964\tab 0.569714\tab 0.464214\tab 0.323679\tab 0.164607\tab 0.073214\tab 0.028036\tab 0.011250\tab 0.006536\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+std\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.227093\tab 1.566275\tab 1.513515\tab 2.674449\tab 3.216234\tab 4.549478\tab 5.470524\tab ...\tab 25.211706\tab 21.240003\tab 16.643468\tab 12.637953\tab 9.963879\tab 7.031504\tab 3.040514\tab 1.265562\tab 0.131475\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.640468\tab 2.234963\tab 2.493982\tab 3.777711\tab 4.946940\tab 6.262819\tab 7.714814\tab 8.243535\tab 8.974038\tab 10.488695\tab 11.209508\tab 10.204173\tab 9.402197\tab 7.878854\tab 5.473293\tab 3.616811\tab 1.813602\tab 1.205211\tab 0.807475\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+min\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+25%\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+50%\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+75%\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+max\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 38.000000\tab 236.000000\tab 163.000000\tab 254.000000\tab 254.000000\tab 255.000000\tab 253.000000\tab ...\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 135.000000\tab 22.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 94.000000\tab 252.000000\tab 245.000000\tab 254.000000\tab 254.000000\tab 255.000000\tab 255.000000\tab 254.000000\tab 253.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 253.000000\tab 254.000000\tab 193.000000\tab 187.000000\tab 119.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+train_data.describe()\par
+label\tab pixel0\tab pixel1\tab pixel2\tab pixel3\tab pixel4\tab pixel5\tab pixel6\tab pixel7\tab pixel8\tab pixel9\tab pixel10\tab pixel11\tab pixel12\tab pixel13\tab pixel14\tab pixel15\tab pixel16\tab pixel17\tab pixel18\tab pixel19\tab pixel20\tab pixel21\tab pixel22\tab pixel23\tab pixel24\tab pixel25\tab pixel26\tab pixel27\tab pixel28\tab pixel29\tab pixel30\tab pixel31\tab pixel32\tab pixel33\tab pixel34\tab pixel35\tab pixel36\tab pixel37\tab pixel38\tab ...\tab pixel744\tab pixel745\tab pixel746\tab pixel747\tab pixel748\tab pixel749\tab pixel750\tab pixel751\tab pixel752\tab pixel753\tab pixel754\tab pixel755\tab pixel756\tab pixel757\tab pixel758\tab pixel759\tab pixel760\tab pixel761\tab pixel762\tab pixel763\tab pixel764\tab pixel765\tab pixel766\tab pixel767\tab pixel768\tab pixel769\tab pixel770\tab pixel771\tab pixel772\tab pixel773\tab pixel774\tab pixel775\tab pixel776\tab pixel777\tab pixel778\tab pixel779\tab pixel780\tab pixel781\tab pixel782\tab pixel783\par
+count\tab 42000.000000\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.00000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab ...\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.00000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.000000\tab 42000.00000\tab 42000.000000\tab 42000.000000\tab 42000.0\tab 42000.0\tab 42000.0\tab 42000.0\par
+mean\tab 4.456643\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.00300\tab 0.011190\tab 0.005143\tab 0.000214\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000381\tab 0.001310\tab 0.010548\tab 0.027262\tab 0.050905\tab 0.066405\tab 0.129571\tab ...\tab 3.772524\tab 2.748905\tab 1.796452\tab 1.089905\tab 0.563190\tab 0.239571\tab 0.093524\tab 0.024833\tab 0.000857\tab 0.001405\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.006143\tab 0.035833\tab 0.082357\tab 0.114905\tab 0.178714\tab 0.301452\tab 0.413643\tab 0.513667\tab 0.558833\tab 0.677857\tab 0.60281\tab 0.489238\tab 0.340214\tab 0.219286\tab 0.117095\tab 0.059024\tab 0.02019\tab 0.017238\tab 0.002857\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+std\tab 2.887730\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.56812\tab 1.626927\tab 1.053972\tab 0.043916\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.078072\tab 0.232634\tab 1.131661\tab 2.310396\tab 3.121847\tab 3.259128\tab 4.992894\tab ...\tab 26.957829\tab 22.879248\tab 18.595109\tab 14.434439\tab 10.517823\tab 6.469315\tab 3.976306\tab 1.846016\tab 0.139556\tab 0.287891\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.949803\tab 2.350859\tab 3.934280\tab 4.543583\tab 5.856772\tab 7.219742\tab 8.928286\tab 10.004069\tab 10.129595\tab 11.254931\tab 10.69603\tab 9.480066\tab 7.950251\tab 6.312890\tab 4.633819\tab 3.274488\tab 1.75987\tab 1.894498\tab 0.414264\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+min\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+25%\tab 2.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+50%\tab 4.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+75%\tab 7.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab ...\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.000000\tab 0.00000\tab 0.000000\tab 0.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+max\tab 9.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 116.00000\tab 254.000000\tab 216.000000\tab 9.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 16.000000\tab 47.000000\tab 157.000000\tab 254.000000\tab 255.000000\tab 243.000000\tab 255.000000\tab ...\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 253.000000\tab 28.000000\tab 59.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 0.0\tab 177.000000\tab 231.000000\tab 253.000000\tab 254.000000\tab 254.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.000000\tab 255.00000\tab 255.000000\tab 255.000000\tab 254.000000\tab 254.000000\tab 253.000000\tab 253.00000\tab 254.000000\tab 62.000000\tab 0.0\tab 0.0\tab 0.0\tab 0.0\par
+# about the dataset\par
+\par
+# dimensions\par
+print("Dimensions: ",test_data.shape, "\\n")\par
+\par
+# data types\par
+print(test_data.info())\par
+\par
+# head\par
+test_data.head()\par
+Dimensions:  (28000, 784) \par
+\par
+<class 'pandas.core.frame.DataFrame'>\par
+RangeIndex: 28000 entries, 0 to 27999\par
+Columns: 784 entries, pixel0 to pixel783\par
+dtypes: int64(784)\par
+memory usage: 167.5 MB\par
+None\par
+pixel0\tab pixel1\tab pixel2\tab pixel3\tab pixel4\tab pixel5\tab pixel6\tab pixel7\tab pixel8\tab pixel9\tab pixel10\tab pixel11\tab pixel12\tab pixel13\tab pixel14\tab pixel15\tab pixel16\tab pixel17\tab pixel18\tab pixel19\tab pixel20\tab pixel21\tab pixel22\tab pixel23\tab pixel24\tab pixel25\tab pixel26\tab pixel27\tab pixel28\tab pixel29\tab pixel30\tab pixel31\tab pixel32\tab pixel33\tab pixel34\tab pixel35\tab pixel36\tab pixel37\tab pixel38\tab pixel39\tab ...\tab pixel744\tab pixel745\tab pixel746\tab pixel747\tab pixel748\tab pixel749\tab pixel750\tab pixel751\tab pixel752\tab pixel753\tab pixel754\tab pixel755\tab pixel756\tab pixel757\tab pixel758\tab pixel759\tab pixel760\tab pixel761\tab pixel762\tab pixel763\tab pixel764\tab pixel765\tab pixel766\tab pixel767\tab pixel768\tab pixel769\tab pixel770\tab pixel771\tab pixel772\tab pixel773\tab pixel774\tab pixel775\tab pixel776\tab pixel777\tab pixel778\tab pixel779\tab pixel780\tab pixel781\tab pixel782\tab pixel783\par
+0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+2\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+3\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+4\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+# about the dataset\par
+\par
+# dimensions\par
+print("Dimensions: ",train_data.shape, "\\n")\par
+\par
+# data types\par
+print(train_data.info())\par
+\par
+# head\par
+train_data.head()\par
+Dimensions:  (42000, 785) \par
+\par
+<class 'pandas.core.frame.DataFrame'>\par
+RangeIndex: 42000 entries, 0 to 41999\par
+Columns: 785 entries, label to pixel783\par
+dtypes: int64(785)\par
+memory usage: 251.5 MB\par
+None\par
+label\tab pixel0\tab pixel1\tab pixel2\tab pixel3\tab pixel4\tab pixel5\tab pixel6\tab pixel7\tab pixel8\tab pixel9\tab pixel10\tab pixel11\tab pixel12\tab pixel13\tab pixel14\tab pixel15\tab pixel16\tab pixel17\tab pixel18\tab pixel19\tab pixel20\tab pixel21\tab pixel22\tab pixel23\tab pixel24\tab pixel25\tab pixel26\tab pixel27\tab pixel28\tab pixel29\tab pixel30\tab pixel31\tab pixel32\tab pixel33\tab pixel34\tab pixel35\tab pixel36\tab pixel37\tab pixel38\tab ...\tab pixel744\tab pixel745\tab pixel746\tab pixel747\tab pixel748\tab pixel749\tab pixel750\tab pixel751\tab pixel752\tab pixel753\tab pixel754\tab pixel755\tab pixel756\tab pixel757\tab pixel758\tab pixel759\tab pixel760\tab pixel761\tab pixel762\tab pixel763\tab pixel764\tab pixel765\tab pixel766\tab pixel767\tab pixel768\tab pixel769\tab pixel770\tab pixel771\tab pixel772\tab pixel773\tab pixel774\tab pixel775\tab pixel776\tab pixel777\tab pixel778\tab pixel779\tab pixel780\tab pixel781\tab pixel782\tab pixel783\par
+0\tab 1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+2\tab 1\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+3\tab 4\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+4\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab ...\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\tab 0\par
+print(train_data.columns)\par
+print(test_data.columns)\par
+Index(['label', 'pixel0', 'pixel1', 'pixel2', 'pixel3', 'pixel4', 'pixel5',\par
+       'pixel6', 'pixel7', 'pixel8',\par
+       ...\par
+       'pixel774', 'pixel775', 'pixel776', 'pixel777', 'pixel778', 'pixel779',\par
+       'pixel780', 'pixel781', 'pixel782', 'pixel783'],\par
+      dtype='object', length=785)\par
+Index(['pixel0', 'pixel1', 'pixel2', 'pixel3', 'pixel4', 'pixel5', 'pixel6',\par
+       'pixel7', 'pixel8', 'pixel9',\par
+       ...\par
+       'pixel774', 'pixel775', 'pixel776', 'pixel777', 'pixel778', 'pixel779',\par
+       'pixel780', 'pixel781', 'pixel782', 'pixel783'],\par
+      dtype='object', length=784)\par
+order = list(np.sort(train_data['label'].unique()))\par
+print(order)\par
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\par
+## Visualizing the number of class and counts in the datasets\par
+\par
+\par
+sns.countplot(train_data["label"])\par
+<matplotlib.axes._subplots.AxesSubplot at 0x7fc4bea72860>\par
+\par
+## Visualizing the number of class and counts in the datasets\par
+plt.plot(figure = (16,10))\par
+g = sns.countplot( train_data["label"], palette = 'icefire')\par
+plt.title('NUmber of digit classes')\par
+train_data.label.astype('category').value_counts()\par
+1    4684\par
+7    4401\par
+3    4351\par
+9    4188\par
+2    4177\par
+6    4137\par
+0    4132\par
+4    4072\par
+8    4063\par
+5    3795\par
+Name: label, dtype: int64\par
+\par
+# Plotting some samples as well as converting into matrix\par
+\par
+four = train_data.iloc[3, 1:]\par
+four.shape\par
+four = four.values.reshape(28,28)\par
+plt.imshow(four, cmap='gray')\par
+plt.title("Digit 4")\par
+Text(0.5, 1.0, 'Digit 4')\par
+\par
+seven = train_data.iloc[6, 1:]\par
+seven.shape\par
+seven = seven.values.reshape(28, 28)\par
+plt.imshow(seven, cmap='gray')\par
+plt.title("Digit 7")\par
+Text(0.5, 1.0, 'Digit 7')\par
+\par
+**Data Preparation**\par
+\par
+Let's conduct some data preparation steps before modeling. Firstly, let's see if it is important to rescale the features, since they may have varying ranges.\par
+\par
+# average feature values\par
+round(train_data.drop('label', axis=1).mean(), 2)\par
+pixel0      0.00\par
+pixel1      0.00\par
+pixel2      0.00\par
+pixel3      0.00\par
+pixel4      0.00\par
+pixel5      0.00\par
+pixel6      0.00\par
+pixel7      0.00\par
+pixel8      0.00\par
+pixel9      0.00\par
+pixel10     0.00\par
+pixel11     0.00\par
+pixel12     0.00\par
+pixel13     0.01\par
+pixel14     0.01\par
+pixel15     0.00\par
+pixel16     0.00\par
+pixel17     0.00\par
+pixel18     0.00\par
+pixel19     0.00\par
+pixel20     0.00\par
+pixel21     0.00\par
+pixel22     0.00\par
+pixel23     0.00\par
+pixel24     0.00\par
+pixel25     0.00\par
+pixel26     0.00\par
+pixel27     0.00\par
+pixel28     0.00\par
+pixel29     0.00\par
+            ... \par
+pixel754    0.00\par
+pixel755    0.00\par
+pixel756    0.00\par
+pixel757    0.00\par
+pixel758    0.00\par
+pixel759    0.00\par
+pixel760    0.00\par
+pixel761    0.01\par
+pixel762    0.04\par
+pixel763    0.08\par
+pixel764    0.11\par
+pixel765    0.18\par
+pixel766    0.30\par
+pixel767    0.41\par
+pixel768    0.51\par
+pixel769    0.56\par
+pixel770    0.68\par
+pixel771    0.60\par
+pixel772    0.49\par
+pixel773    0.34\par
+pixel774    0.22\par
+pixel775    0.12\par
+pixel776    0.06\par
+pixel777    0.02\par
+pixel778    0.02\par
+pixel779    0.00\par
+pixel780    0.00\par
+pixel781    0.00\par
+pixel782    0.00\par
+pixel783    0.00\par
+Length: 784, dtype: float64\par
+In this case, the average values do not vary a lot (e.g. having a diff of an order of magnitude). Nevertheless, it is better to rescale them.\par
+\par
+## Separating the X and Y variable\par
+\par
+y = train_data['label']\par
+\par
+## Dropping the variable 'label' from X variable \par
+X = train_data.drop(columns = 'label')\par
+\par
+## Printing the size of data \par
+print(train_data.shape)\par
+(42000, 785)\par
+## Normalization\par
+\par
+X = X/255.0\par
+test_data = test_data/255.0\par
+\par
+print("X:", X.shape)\par
+print("test_data:", test_data.shape)\par
+X: (42000, 784)\par
+test_data: (28000, 784)\par
+# scaling the features\par
+from sklearn.preprocessing import scale\par
+X_scaled = scale(X)\par
+\par
+# train test split\par
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size = 0.3, train_size = 0.2 ,random_state = 10)\par
+**Model Building**\par
+\par
+Let's fist build two basic models - linear and non-linear with default hyperparameters, and compare the accuracies.\par
+\par
+# linear model\par
+\par
+model_linear = SVC(kernel='linear')\par
+model_linear.fit(X_train, y_train)\par
+\par
+# predict\par
+y_pred = model_linear.predict(X_test)\par
+# confusion matrix and accuracy\par
+\par
+from sklearn import metrics\par
+from sklearn.metrics import confusion_matrix\par
+# accuracy\par
+print("accuracy:", metrics.accuracy_score(y_true=y_test, y_pred=y_pred), "\\n")\par
+\par
+# cm\par
+print(metrics.confusion_matrix(y_true=y_test, y_pred=y_pred))\par
+accuracy: 0.9133333333333333 \par
+\par
+[[1160    0    0    1    6    6   12    1    1    1]\par
+ [   0 1389    3    4    3    0    0    2   12    0]\par
+ [   9   11 1146   38   11    4   10   12   17    2]\par
+ [   5    4   35 1204    0   51    2    3   21    6]\par
+ [   3    3   20    3 1132    1   10    4    2   40]\par
+ [   9   17   10   67    7  997   14    2   19    7]\par
+ [  15    2   15    0    9   15 1160    1    2    0]\par
+ [   5   12   18    9   26    2    1 1212    3   42]\par
+ [   8   31   24   45    8   61    9   14 1002   15]\par
+ [   9    6    7   28   56    3    0   53    7 1106]]\par
+The linear model gives approx. 91% accuracy. Let's look at a sufficiently non-linear model with randomly chosen hyperparameters.\par
+\par
+# non-linear model\par
+# using rbf kernel, C=1, default value of gamma\par
+\par
+# model\par
+non_linear_model = SVC(kernel='rbf')\par
+\par
+# fit\par
+non_linear_model.fit(X_train, y_train)\par
+\par
+# predict\par
+y_pred = non_linear_model.predict(X_test)\par
+/opt/conda/lib/python3.6/site-packages/sklearn/svm/base.py:196: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.\par
+  "avoid this warning.", FutureWarning)\par
+# confusion matrix and accuracy\par
+\par
+# accuracy\par
+print("accuracy:", metrics.accuracy_score(y_true=y_test, y_pred=y_pred), "\\n")\par
+\par
+# cm\par
+print(metrics.confusion_matrix(y_true=y_test, y_pred=y_pred))\par
+accuracy: 0.9347619047619048 \par
+\par
+[[1158    0    5    1    0    3   11    5    4    1]\par
+ [   0 1389    4    3    4    0    2    6    5    0]\par
+ [   2    4 1171   19    5    0    9   34   15    1]\par
+ [   1    4   21 1236    0   22    2   30   12    3]\par
+ [   0    5   24    1 1135    0    9   14    3   27]\par
+ [   1    9    4   41    3 1047   17   10    9    8]\par
+ [  12    2    5    0    2   18 1154   24    2    0]\par
+ [   4   11    9    4   16    0    0 1253    1   32]\par
+ [   4   19   13   26    8   23    8   14 1094    8]\par
+ [   3    4    5   30   24    2    1   61    4 1141]]\par
+The non-linear model gives approx. 93% accuracy. Thus, going forward, let's choose hyperparameters corresponding to non-linear models\par
+\par
+Grid Search: Hyperparameter Tuning\par
+\par
+Let's now tune the model to find the optimal values of C and gamma corresponding to an RBF kernel. We'll use 5-fold cross validation.\par
+\par
+# creating a KFold object with 5 splits \par
+folds = KFold(n_splits = 5, shuffle = True, random_state = 10)\par
+\par
+# specify range of hyperparameters\par
+# Set the parameters by cross-validation\par
+hyper_params = [ \{'gamma': [1e-2, 1e-3, 1e-4],\par
+                     'C': [5,10]\}]\par
+\par
+\par
+# specify model\par
+model = SVC(kernel="rbf")\par
+\par
+# set up GridSearchCV()\par
+model_cv = GridSearchCV(estimator = model, \par
+                        param_grid = hyper_params, \par
+                        scoring= 'accuracy', \par
+                        cv = folds, \par
+                        verbose = 1,\par
+                        return_train_score=True)      \par
+\par
+# fit the model\par
+model_cv.fit(X_train, y_train)\par
+Fitting 5 folds for each of 6 candidates, totalling 30 fits\par
+[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.\par
+[Parallel(n_jobs=1)]: Done  30 out of  30 | elapsed: 48.2min finished\par
+GridSearchCV(cv=KFold(n_splits=5, random_state=10, shuffle=True),\par
+       error_score='raise-deprecating',\par
+       estimator=SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,\par
+  decision_function_shape='ovr', degree=3, gamma='auto_deprecated',\par
+  kernel='rbf', max_iter=-1, probability=False, random_state=None,\par
+  shrinking=True, tol=0.001, verbose=False),\par
+       fit_params=None, iid='warn', n_jobs=None,\par
+       param_grid=[\{'gamma': [0.01, 0.001, 0.0001], 'C': [5, 10]\}],\par
+       pre_dispatch='2*n_jobs', refit=True, return_train_score=True,\par
+       scoring='accuracy', verbose=1)\par
+# cv results\par
+cv_results = pd.DataFrame(model_cv.cv_results_)\par
+cv_results\par
+mean_fit_time\tab std_fit_time\tab mean_score_time\tab std_score_time\tab param_C\tab param_gamma\tab params\tab split0_test_score\tab split1_test_score\tab split2_test_score\tab split3_test_score\tab split4_test_score\tab mean_test_score\tab std_test_score\tab rank_test_score\tab split0_train_score\tab split1_train_score\tab split2_train_score\tab split3_train_score\tab split4_train_score\tab mean_train_score\tab std_train_score\par
+0\tab 100.690525\tab 1.042045\tab 15.118853\tab 0.301155\tab 5\tab 0.01\tab\{'C': 5, 'gamma': 0.01\}\tab 0.755357\tab 0.757143\tab 0.779167\tab 0.759524\tab 0.782143\tab 0.766667\tab 0.011536\tab 5\tab 1.000000\tab 1.000000\tab 1.000000\tab 1.000000\tab 1.000000\tab 1.000000\tab 0.000000\par
+1\tab 20.254701\tab 0.151718\tab 7.542642\tab 0.211012\tab 5\tab 0.001\tab\{'C': 5, 'gamma': 0.001\}\tab 0.936310\tab 0.945238\tab 0.946429\tab 0.944643\tab 0.950000\tab 0.944524\tab 0.004508\tab 2\tab 0.996875\tab 0.996577\tab 0.996429\tab 0.996875\tab 0.996280\tab 0.996607\tab 0.000238\par
+2\tab 18.937722\tab 0.079798\tab 7.859866\tab 0.101821\tab 5\tab 0.0001\tab\{'C': 5, 'gamma': 0.0001\}\tab 0.914286\tab 0.925595\tab 0.922024\tab 0.917857\tab 0.935119\tab 0.922976\tab 0.007169\tab 4\tab 0.950446\tab 0.950893\tab 0.950000\tab 0.947768\tab 0.947619\tab 0.949345\tab 0.001379\par
+3\tab 101.383875\tab 1.464120\tab 14.765303\tab 0.149765\tab 10\tab 0.01\tab\{'C': 10, 'gamma': 0.01\}\tab 0.755357\tab 0.757143\tab 0.779167\tab 0.759524\tab 0.782143\tab 0.766667\tab 0.011536\tab 5\tab 1.000000\tab 1.000000\tab 1.000000\tab 1.000000\tab 1.000000\tab 1.000000\tab 0.000000\par
+4\tab 20.939175\tab 0.530293\tab 7.518898\tab 0.319596\tab 10\tab 0.001\tab\{'C': 10, 'gamma': 0.001\}\tab 0.933929\tab 0.945238\tab 0.947024\tab 0.947024\tab 0.951190\tab 0.944881\tab 0.005815\tab 1\tab 0.999405\tab 0.999405\tab 0.999405\tab 0.999405\tab 0.999405\tab 0.999405\tab 0.000000\par
+5\tab 15.892133\tab 0.278646\tab 6.808518\tab 0.110173\tab 10\tab 0.0001\tab\{'C': 10, 'gamma': 0.0001\}\tab 0.911310\tab 0.928571\tab 0.927976\tab 0.922619\tab 0.939881\tab 0.926071\tab 0.009278\tab 3\tab 0.963542\tab 0.964137\tab 0.963839\tab 0.961607\tab 0.959524\tab 0.962530\tab 0.001744\par
+# converting C to numeric type for plotting on x-axis\par
+cv_results['param_C'] = cv_results['param_C'].astype('int')\par
+\par
+# # plotting\par
+plt.figure(figsize=(16,8))\par
+\par
+# subplot 1/3\par
+plt.subplot(131)\par
+gamma_01 = cv_results[cv_results['param_gamma']==0.01]\par
+\par
+plt.plot(gamma_01["param_C"], gamma_01["mean_test_score"])\par
+plt.plot(gamma_01["param_C"], gamma_01["mean_train_score"])\par
+plt.xlabel('C')\par
+plt.ylabel('Accuracy')\par
+plt.title("Gamma=0.01")\par
+plt.ylim([0.60, 1])\par
+plt.legend(['test accuracy', 'train accuracy'], loc='upper left')\par
+plt.xscale('log')\par
+\par
+# subplot 2/3\par
+plt.subplot(132)\par
+gamma_001 = cv_results[cv_results['param_gamma']==0.001]\par
+\par
+plt.plot(gamma_001["param_C"], gamma_001["mean_test_score"])\par
+plt.plot(gamma_001["param_C"], gamma_001["mean_train_score"])\par
+plt.xlabel('C')\par
+plt.ylabel('Accuracy')\par
+plt.title("Gamma=0.001")\par
+plt.ylim([0.60, 1])\par
+plt.legend(['test accuracy', 'train accuracy'], loc='upper left')\par
+plt.xscale('log')\par
+\par
+\par
+# subplot 3/3\par
+plt.subplot(133)\par
+gamma_0001 = cv_results[cv_results['param_gamma']==0.0001]\par
+\par
+plt.plot(gamma_0001["param_C"], gamma_0001["mean_test_score"])\par
+plt.plot(gamma_0001["param_C"], gamma_0001["mean_train_score"])\par
+plt.xlabel('C')\par
+plt.ylabel('Accuracy')\par
+plt.title("Gamma=0.0001")\par
+plt.ylim([0.60, 1])\par
+plt.legend(['test accuracy', 'train accuracy'], loc='upper left')\par
+plt.xscale('log')\par
+\par
+From the plot above, we can observe that (from higher to lower gamma / left to right):\par
+\par
+At very high gamma (0.01), the model is achieving 100% accuracy on the training data, though the test score is quite low (<80%). Thus, the model is overfitting.\par
+\par
+At gamma=0.001, the training and test scores are comparable at around C=1, though the model starts to overfit at higher values of C\par
+\par
+At gamma=0.0001, the model does not overfit till C=10 but starts showing signs at C=100. Also, the training and test scores are slightly lower than at gamma=0.001.\par
+\par
+Thus, it seems that the best combination is gamma=0.001 and C=15 (the plot in the middle), which gives the highest test accuracy (~94%) while avoiding overfitting.\par
+\par
+Let's now build the final model and see the performance on test data.\par
+\par
+Let's now choose the best hyperparameters.\par
+\par
+# printing the optimal accuracy score and hyperparameters\par
+best_score = model_cv.best_score_\par
+best_hyperparams = model_cv.best_params_\par
+\par
+print("The best test score is \{0\} corresponding to hyperparameters \{1\}".format(best_score, best_hyperparams))\par
+The best test score is 0.9448809523809524 corresponding to hyperparameters \{'C': 10, 'gamma': 0.001\}\par
+Building and Evaluating the Final Model\par
+\par
+Let's now build and evaluate the final model, i.e. the model with highest test accuracy.\par
+\par
+# model with optimal hyperparameters\par
+\par
+# model\par
+model = SVC(C=10, gamma=0.001, kernel="rbf")\par
+\par
+model.fit(X_train, y_train)\par
+y_pred = model.predict(X_test)\par
+\par
+# metrics\par
+print("accuracy", metrics.accuracy_score(y_test, y_pred), "\\n")\par
+print(metrics.confusion_matrix(y_test, y_pred), "\\n")\par
+accuracy 0.9438888888888889 \par
+\par
+[[1163    0    4    1    1    2    8    6    3    0]\par
+ [   0 1389    4    2    4    0    1    9    4    0]\par
+ [   1    4 1184   14    5    1    9   30    7    5]\par
+ [   0    3   15 1263    0   14    2   23    8    3]\par
+ [   1    2   20    3 1149    0   10   10    2   21]\par
+ [   2    8    3   30    4 1064   15    9   11    3]\par
+ [   8    1    3    0    3   13 1167   23    1    0]\par
+ [   4    9   10    8   12    0    0 1255    2   30]\par
+ [   5   18   17   23    8   20    5   13 1098   10]\par
+ [   5    3    2   27   21    1    1   51    3 1161]] \par
+\par
+Conclusion\par
+\par
+The accuracy achieved using a non-linear kernel (~0.94) is mush higher than that of a linear one (~0.91). We can conclude that the problem is highly non-linear in nature.\par
+}
+ 
